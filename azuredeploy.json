@@ -1,0 +1,772 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "outputs": {
+        "DTRLoginURL": {
+            "type": "String",
+            "value": "[concat('https://', reference(resourceId('Microsoft.Network/publicIPAddresses', variables('lbDTRPublicIPAddressName'))).dnsSettings.fqdn)]"
+        },
+        "DefaultDNSTarget": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('lbPublicIPAddressName'))).ipAddress]"
+        },
+        "SSH Targets": {
+            "type": "string",
+            "value": "[concat('https://portal.azure.com/#resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', variables('lbSSHName'), '/inboundNatRules')]"
+        },
+        "UCPLoginURL": {
+            "type": "String",
+            "value": "[concat('https://', reference(resourceId('Microsoft.Network/publicIPAddresses', variables('lbSSHPublicIPAddressName'))).dnsSettings.fqdn)]"
+        }
+    },
+    "parameters": {
+        "ddcLicenseKey": {
+            "metadata": {
+                "description": "Upload your Docker Datacenter License Key"
+            },
+            "type": "SecureString"
+        },
+        "ddcPassword": {
+            "maxLength": 40,
+            "metadata": {
+                "description": "Please enter the password you want to use for Docker Datacenter."
+            },
+            "minLength": 8,
+            "type": "SecureString"
+        },
+        "ddcUsername": {
+            "defaultValue": "ddcadmin",
+            "metadata": {
+                "description": "Please enter the username you want to use for Docker Datacenter."
+            },
+            "type": "String"
+        },
+        "adServicePrincipalAppID": {
+            "metadata": {
+                "description": "AD ServicePrincipal App ID"
+            },
+            "type": "string",
+            "defaultValue": ""
+        },
+        "adServicePrincipalAppSecret": {
+            "metadata": {
+                "description": "AD ServicePrincipal App Secret"
+            },
+            "type": "securestring"
+        },
+        "enableSystemPrune": {
+            "allowedValues": [
+                "yes",
+                "no"
+            ],
+            "defaultValue": "no",
+            "metadata": {
+                "description": "Cleans up unused images, containers, networks and volumes"
+            },
+            "type": "string"
+        },
+        "managerCount": {
+            "allowedValues": [
+                1,
+                3,
+                5
+            ],
+            "defaultValue": 1,
+            "type": "int"
+        },
+        "managerVMSize": {
+            "allowedValues": [
+                "Standard_A0",
+                "Standard_A1",
+                "Standard_A2",
+                "Standard_A3",
+                "Standard_A4",
+                "Standard_A5",
+                "Standard_A6",
+                "Standard_A7",
+                "Standard_A8",
+                "Standard_A9",
+                "Standard_A10",
+                "Standard_A11",
+                "Standard_D1",
+                "Standard_D2",
+                "Standard_D3",
+                "Standard_D4",
+                "Standard_D11",
+                "Standard_D12",
+                "Standard_D13",
+                "Standard_D14",
+                "Standard_D1_v2",
+                "Standard_D2_v2",
+                "Standard_D3_v2",
+                "Standard_D4_v2",
+                "Standard_D5_v2",
+                "Standard_D11_v2",
+                "Standard_D12_v2",
+                "Standard_D13_v2",
+                "Standard_D14_v2",
+                "Standard_G1",
+                "Standard_G2",
+                "Standard_G3",
+                "Standard_G4",
+                "Standard_G5",
+                "Standard_DS1",
+                "Standard_DS2",
+                "Standard_DS3",
+                "Standard_DS4",
+                "Standard_DS11",
+                "Standard_DS12",
+                "Standard_DS13",
+                "Standard_DS14",
+                "Standard_GS1",
+                "Standard_GS2",
+                "Standard_GS3",
+                "Standard_GS4",
+                "Standard_GS5"
+            ],
+            "defaultValue": "Standard_DS3",
+            "metadata": {
+                "description": "The size of the created Manager machines"
+            },
+            "type": "string"
+        },
+        "sshPublicKey": {
+            "metadata": {
+                "description": "The SSH public key used to authenticate with the created swarm. Usually available in $HOME/.ssh/id_rsa.pub file"
+            },
+            "type": "string"
+        },
+        "swarmName": {
+            "defaultValue": "dockerswarm",
+            "metadata": {
+                "description": "Define how the swarm resources should be named."
+            },
+            "type": "string"
+        },
+        "workerCount": {
+            "allowedValues": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15
+            ],
+            "defaultValue": 1,
+            "metadata": {
+                "description": "Number of Worker nodes"
+            },
+            "type": "int"
+        },
+        "workerVMSize": {
+            "allowedValues": [
+                "Standard_A0",
+                "Standard_A1",
+                "Standard_A2",
+                "Standard_A3",
+                "Standard_A4",
+                "Standard_A5",
+                "Standard_A6",
+                "Standard_A7",
+                "Standard_A8",
+                "Standard_A9",
+                "Standard_A10",
+                "Standard_A11",
+                "Standard_D1",
+                "Standard_D2",
+                "Standard_D3",
+                "Standard_D4",
+                "Standard_D11",
+                "Standard_D12",
+                "Standard_D13",
+                "Standard_D14",
+                "Standard_D1_v2",
+                "Standard_D2_v2",
+                "Standard_D3_v2",
+                "Standard_D4_v2",
+                "Standard_D5_v2",
+                "Standard_D11_v2",
+                "Standard_D12_v2",
+                "Standard_D13_v2",
+                "Standard_D14_v2",
+                "Standard_G1",
+                "Standard_G2",
+                "Standard_G3",
+                "Standard_G4",
+                "Standard_G5",
+                "Standard_DS1",
+                "Standard_DS2",
+                "Standard_DS3",
+                "Standard_DS4",
+                "Standard_DS11",
+                "Standard_DS12",
+                "Standard_DS13",
+                "Standard_DS14",
+                "Standard_GS1",
+                "Standard_GS2",
+                "Standard_GS3",
+                "Standard_GS4",
+                "Standard_GS5"
+            ],
+            "defaultValue": "Standard_D2_v2",
+            "metadata": {
+                "description": "The size of the created machines"
+            },
+            "type": "string"
+        }
+    },
+    "resources": [
+        {
+            "apiVersion": "2015-06-15",
+            "copy": {
+                "count": "[length(variables('uniqueStringArray'))]",
+                "name": "storageLoop"
+            },
+            "location": "[variables('storageLocation')]",
+            "name": "[concat(variables('uniqueStringArray')[copyIndex()], variables('storageAccountSuffix'))]",
+            "properties": {
+                "accountType": "Standard_LRS"
+            },
+            "tags": {
+                "provider": "[toUpper(variables('DockerProviderTag'))]"
+            },
+            "type": "Microsoft.Storage/storageAccounts"
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "location": "[variables('storageLocation')]",
+            "name": "[variables('swarmLogsStorageAccount')]",
+            "properties": {
+                "accountType": "Standard_LRS"
+            },
+            "tags": {
+                "provider": "[toUpper(variables('DockerProviderTag'))]"
+            },
+            "type": "Microsoft.Storage/storageAccounts"
+        },
+        {
+            "apiVersion": "[variables('apiVersion')]",
+            "location": "[variables('storageLocation')]",
+            "name": "[variables('virtualNetworkName')]",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "[variables('subnetPrefix')]",
+                        "[variables('managerAddressPrefix')]"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "[variables('subnetName')]",
+                        "properties": {
+                            "addressPrefix": "[variables('subnetPrefix')]"
+                        }
+                    }
+                ]
+            },
+            "tags": {
+                "provider": "[toUpper(variables('DockerProviderTag'))]"
+            },
+            "type": "Microsoft.Network/virtualNetworks"
+        },
+        {
+            "apiVersion": "[variables('apiVersion')]",
+            "dependsOn": [
+                "[variables('vnetID')]",
+                "[variables('lbSSHID')]",
+                "storageLoop"
+            ],
+            "location": "[variables('storageLocation')]",
+            "name": "[variables('vmssManagersName')]",
+            "plan": {
+                "name": "[variables('imageSku')]",
+                "product": "[variables('imageOffer')]",
+                "publisher": "[variables('imagePublisher')]"
+            },
+            "properties": {
+                "overprovision": false,
+                "upgradePolicy": {
+                    "mode": "Manual"
+                },
+                "virtualMachineProfile": {
+                    "diagnosticsProfile": {
+                        "bootDiagnostics": {
+                            "enabled": true,
+                            "storageUri": "[concat('https://', variables('uniqueStringArray')[0], variables('storageAccountSuffix'), '.blob.core.windows.net')]"
+                        }
+                    },
+                    "networkProfile": {
+                        "networkInterfaceConfigurations": [
+                            {
+                                "name": "managerNodeNic",
+                                "properties": {
+                                    "ipConfigurations": [
+                                        {
+                                            "name": "mgripconfig",
+                                            "privateIPAllocationMethod": "dynamic",
+                                            "properties": {
+                                                "loadBalancerBackendAddressPools": [
+                                                    {
+                                                        "id": "[variables('lbSSHBackendAddressPoolID')]"
+                                                    }
+                                                ],
+                                                "loadBalancerInboundNatPools": [
+                                                    {
+                                                        "id": "[variables('lbSSHNATPoolID')]"
+                                                    }
+                                                ],
+                                                "subnet": {
+                                                    "id": "[variables('subnetRef')]"
+                                                }
+                                            }
+                                        }
+                                    ],
+                                    "primary": true
+                                }
+                            }
+                        ]
+                    },
+                    "osProfile": {
+                        "adminUsername": "[variables('adminUsername')]",
+                        "computerNamePrefix": "[variables('managerVMNamePrefix')]",
+                        "customData": "[base64(concat('#!/bin/bash', '\n',  'export ROLE=\"MANAGER\"', '\n', 'export LB_IP=\"', reference(resourceId('Microsoft.Network/publicIPAddresses', variables('lbPublicIPAddressName'))).ipAddress, '\"', '\n', variables('customData')))]",
+                        "linuxConfiguration": {
+                            "disablePasswordAuthentication": true,
+                            "ssh": {
+                                "publicKeys": [
+                                    {
+                                        "keyData": "[variables('sshRSAPublicKey')]",
+                                        "path": "[variables('sshKeyPath')]"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "storageProfile": {
+                        "imageReference": "[variables('imageReference')]",
+                        "osDisk": {
+                            "caching": "ReadWrite",
+                            "createOption": "FromImage",
+                            "name": "[concat(variables('managerVMNamePrefix'), 'vmssosdisk')]",
+                            "vhdContainers": [
+                                "[concat('https://', variables('uniqueStringArray')[0], variables('storageAccountSuffix'), '.blob.core.windows.net/', variables('vhdContainerName'))]"
+                            ]
+                        }
+                    }
+                }
+            },
+            "sku": {
+                "capacity": "[variables('managerCount')]",
+                "name": "[variables('managerVMSize')]",
+                "tier": "Standard"
+            },
+            "tags": {
+                "provider": "[toUpper(variables('DockerProviderTag'))]"
+            },
+            "type": "Microsoft.Compute/virtualMachineScaleSets"
+        },
+        {
+            "apiVersion": "[variables('apiVersion')]",
+            "dependsOn": [
+                "[variables('vnetID')]",
+                "[variables('lbID')]",
+                "storageLoop"
+            ],
+            "location": "[variables('storageLocation')]",
+            "name": "[variables('vmssName')]",
+            "plan": {
+                "name": "[variables('imageSku')]",
+                "product": "[variables('imageOffer')]",
+                "publisher": "[variables('imagePublisher')]"
+            },
+            "properties": {
+                "overprovision": false,
+                "upgradePolicy": {
+                    "mode": "Manual"
+                },
+                "virtualMachineProfile": {
+                    "diagnosticsProfile": {
+                        "bootDiagnostics": {
+                            "enabled": true,
+                            "storageUri": "[concat('https://', variables('uniqueStringArray')[0], variables('storageAccountSuffix'), '.blob.core.windows.net')]"
+                        }
+                    },
+                    "networkProfile": {
+                        "networkInterfaceConfigurations": [
+                            {
+                                "name": "workerNodeNic",
+                                "properties": {
+                                    "ipConfigurations": [
+                                        {
+                                            "name": "nicipconfig",
+                                            "privateIPAllocationMethod": "dynamic",
+                                            "properties": {
+                                                "loadBalancerBackendAddressPools": [
+                                                    {
+                                                        "id": "[ variables('lbBackendAddressPoolID')]"
+                                                    }
+                                                ],
+                                                "subnet": {
+                                                    "id": "[variables('subnetRef')]"
+                                                }
+                                            }
+                                        }
+                                    ],
+                                    "primary": true
+                                }
+                            }
+                        ]
+                    },
+                    "osProfile": {
+                        "adminUsername": "[variables('adminUsername')]",
+                        "computerNamePrefix": "[variables('workerVMNamePrefix')]",
+                        "customData": "[base64(concat('#!/bin/bash', '\n', 'export ROLE=\"WORKER\"', '\n', 'export LB_IP=\"', reference(resourceId('Microsoft.Network/publicIPAddresses', variables('lbPublicIPAddressName'))).ipAddress, '\"', '\n', variables('customData')))]",
+                        "linuxConfiguration": {
+                            "disablePasswordAuthentication": true,
+                            "ssh": {
+                                "publicKeys": [
+                                    {
+                                        "keyData": "[variables('sshRSAPublicKey')]",
+                                        "path": "[variables('sshKeyPath')]"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "storageProfile": {
+                        "imageReference": "[variables('imageReference')]",
+                        "osDisk": {
+                            "caching": "ReadWrite",
+                            "createOption": "FromImage",
+                            "name": "[concat(variables('workerVMNamePrefix'), 'vmssosdisk', 0)]",
+                            "vhdContainers": [
+                                "[concat('https://', variables('uniqueStringArray')[0], variables('storageAccountSuffix'), '.blob.core.windows.net/', variables('vhdContainerName'))]",
+                                "[concat('https://', variables('uniqueStringArray')[1], variables('storageAccountSuffix'), '.blob.core.windows.net/', variables('vhdContainerName'))]",
+                                "[concat('https://', variables('uniqueStringArray')[2], variables('storageAccountSuffix'), '.blob.core.windows.net/', variables('vhdContainerName'))]",
+                                "[concat('https://', variables('uniqueStringArray')[3], variables('storageAccountSuffix'), '.blob.core.windows.net/', variables('vhdContainerName'))]",
+                                "[concat('https://', variables('uniqueStringArray')[4], variables('storageAccountSuffix'), '.blob.core.windows.net/', variables('vhdContainerName'))]"
+                            ]
+                        }
+                    }
+                }
+            },
+            "sku": {
+                "capacity": "[variables('workerCount')]",
+                "name": "[variables('workerVMSize')]",
+                "tier": "Standard"
+            },
+            "tags": {
+                "provider": "[toUpper(variables('DockerProviderTag'))]"
+            },
+            "type": "Microsoft.Compute/virtualMachineScaleSets"
+        },
+        {
+            "apiVersion": "[variables('apiVersion')]",
+            "location": "[variables('storageLocation')]",
+            "name": "[variables('lbPublicIPAddressName')]",
+            "properties": {
+                "dnsSettings": {
+                    "domainNameLabel": "[variables('lbPublicIpDnsName')]"
+                },
+                "publicIPAllocationMethod": "Static"
+            },
+            "tags": {
+                "provider": "[toUpper(variables('DockerProviderTag'))]"
+            },
+            "type": "Microsoft.Network/publicIPAddresses"
+        },
+        {
+            "apiVersion": "[variables('apiVersion')]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/publicIPAddresses/', variables('lbPublicIPAddressName'))]"
+            ],
+            "location": "[resourceGroup().location]",
+            "name": "[variables('lbName')]",
+            "properties": {
+                "backendAddressPools": [
+                    {
+                        "name": "default"
+                    }
+                ],
+                "frontendIPConfigurations": [
+                    {
+                        "name": "default",
+                        "properties": {
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('lbPublicIPAddressName'))]"
+                            }
+                        }
+                    }
+                ],
+                "probes": [
+                    {
+                        "name": "default",
+                        "properties": {
+                            "intervalInSeconds": 10,
+                            "numberOfProbes": 2,
+                            "port": 44554,
+                            "protocol": "Tcp"
+                        }
+                    }
+                ]
+            },
+            "tags": {
+                "provider": "[toUpper(variables('DockerProviderTag'))]"
+            },
+            "type": "Microsoft.Network/loadBalancers"
+        },
+        {
+            "apiVersion": "[variables('apiVersion')]",
+            "location": "[variables('storageLocation')]",
+            "name": "[variables('lbSSHPublicIPAddressName')]",
+            "properties": {
+                "dnsSettings": {
+                    "domainNameLabel": "[variables('ucpLbPublicIpDnsName')]"
+                },
+                "publicIPAllocationMethod": "Static"
+            },
+            "tags": {
+                "provider": "[toUpper(variables('DockerProviderTag'))]"
+            },
+            "type": "Microsoft.Network/publicIPAddresses"
+        },
+        {
+            "apiVersion": "[variables('apiVersion')]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/publicIPAddresses/', variables('lbSSHPublicIPAddressName'))]",
+                "[concat('Microsoft.Network/publicIPAddresses/', variables('lbDTRPublicIPAddressName'))]"
+            ],
+            "location": "[resourceGroup().location]",
+            "name": "[variables('lbSSHName')]",
+            "properties": {
+                "backendAddressPools": [
+                    {
+                        "name": "default"
+                    }
+                ],
+                "frontendIPConfigurations": [
+                    {
+                        "name": "default",
+                        "properties": {
+                            "publicIPAddress": {
+                                "id": "[variables('lbpublicIPAddress1')]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "dtrlbfrontend",
+                        "properties": {
+                            "publicIPAddress": {
+                                "id": "[variables('lbpublicIPAddress2')]"
+                            }
+                        }
+                    }
+                ],
+                "inboundNatPools": [
+                    {
+                        "name": "default",
+                        "properties": {
+                            "backendPort": 22,
+                            "frontendIPConfiguration": {
+                                "id": "[variables('lbSSHFrontEndIPConfigID')]"
+                            },
+                            "frontendPortRangeEnd": "[variables('natSSHEndPort')]",
+                            "frontendPortRangeStart": "[variables('natSSHStartPort')]",
+                            "protocol": "tcp"
+                        }
+                    }
+                ],
+                "loadBalancingRules": [
+                    {
+                        "name": "ucpLbRule",
+                        "properties": {
+                            "backendAddressPool": {
+                                "id": "[concat(variables('lbSSHID'), '/backendAddressPools/default')]"
+                            },
+                            "backendPort": 8443,
+                            "enableFloatingIP": false,
+                            "frontendIPConfiguration": {
+                                "id": "[variables('lbSSHFrontEndIPConfigID')]"
+                            },
+                            "frontendPort": 443,
+                            "idleTimeoutInMinutes": 5,
+                            "probe": {
+                                "id": "[concat(variables('lbSSHID'),'/probes/ucp')]"
+                            },
+                            "protocol": "tcp"
+                        }
+                    },
+                    {
+                        "name": "dtrLbRule",
+                        "properties": {
+                            "backendAddressPool": {
+                                "id": "[concat(variables('lbSSHID'), '/backendAddressPools/default')]"
+                            },
+                            "backendPort": 443,
+                            "enableFloatingIP": false,
+                            "frontendIPConfiguration": {
+                                "id": "[variables('lbDTRFrontEndIPConfigID')]"
+                            },
+                            "frontendPort": 443,
+                            "idleTimeoutInMinutes": 5,
+                            "probe": {
+                                "id": "[concat(variables('lbSSHID'),'/probes/dtr')]"
+                            },
+                            "protocol": "tcp"
+                        }
+                    }
+                ],
+                "probes": [
+                    {
+                        "name": "default",
+                        "properties": {
+                            "intervalInSeconds": 10,
+                            "numberOfProbes": 2,
+                            "port": 22,
+                            "protocol": "Tcp"
+                        }
+                    },
+                    {
+                        "name": "ucp",
+                        "properties": {
+                            "intervalInSeconds": 10,
+                            "numberOfProbes": 2,
+                            "port": 8443,
+                            "protocol": "tcp"
+                        }
+                    },
+                    {
+                        "name": "dtr",
+                        "properties": {
+                            "intervalInSeconds": 10,
+                            "numberOfProbes": 2,
+                            "port": 443,
+                            "protocol": "tcp"
+                        }
+                    }
+                ]
+            },
+            "tags": {
+                "provider": "[toUpper(variables('DockerProviderTag'))]"
+            },
+            "type": "Microsoft.Network/loadBalancers"
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "location": "[variables('storageLocation')]",
+            "name": "[variables('dtrStorageAccount')]",
+            "properties": {
+                "accountType": "Standard_LRS"
+            },
+            "tags": {
+                "provider": "[toUpper(variables('DockerProviderTag'))]"
+            },
+            "type": "Microsoft.Storage/storageAccounts"
+        },
+        {
+            "apiVersion": "[variables('apiVersion')]",
+            "location": "[variables('storageLocation')]",
+            "name": "[variables('lbDTRPublicIPAddressName')]",
+            "properties": {
+                "dnsSettings": {
+                    "domainNameLabel": "[variables('dtrLbPublicIpDnsName')]"
+                },
+                "publicIPAllocationMethod": "Static"
+            },
+            "tags": {
+                "provider": "[toUpper(variables('DockerProviderTag'))]"
+            },
+            "type": "Microsoft.Network/publicIPAddresses"
+        }
+    ],
+    "variables": {
+        "Description": "Docker for Azure 1.13.0 (1.13.0-1)",
+        "DockerProviderTag": "8CF0E79C-DF97-4992-9B59-602DB544D354",
+        "accountID": "[subscription().subscriptionId]",
+        "adServicePrincipalAppID": "[parameters('adServicePrincipalAppID')]",
+        "adServicePrincipalAppSecret": "[parameters('adServicePrincipalAppSecret')]",
+        "adServicePrincipalTenantID": "[subscription().tenantId]",
+        "adminUsername": "docker",
+        "apiVersion": "2016-03-30",
+        "basePrefix": "[parameters('swarmName')]",
+        "customData": "[concat('export ACCOUNT_ID=\"', variables('accountID'), '\"', '\n', 'export REGION=\"', variables('storageLocation'), '\"', '\n', 'export SUB_ID=\"', variables('accountID'), '\"', '\n', 'export GROUP_NAME=\"', variables('groupName'), '\"', '\n', 'export LB_NAME=\"', variables('lbName'), '\"', '\n', 'export APP_ID=\"', variables('adServicePrincipalAppID'), '\"', '\n', 'export APP_SECRET=\"', variables('adServicePrincipalAppSecret'), '\"', '\n', 'export TENANT_ID=\"', variables('adServicePrincipalTenantID'), '\"', '\n', 'export SWARM_INFO_STORAGE_ACCOUNT=\"', variables('swarmInfoStorageAccount'), '\"', '\n', 'export SWARM_LOGS_STORAGE_ACCOUNT=\"', variables('swarmLogsStorageAccount'), '\"', '\n', 'export PRIVATE_IP=$(ifconfig eth0 | grep \"inet addr:\" | cut -d: -f2 | cut -d\" \" -f1)\n', 'export AZURE_HOSTNAME=$(hostname)\n', '\n', 'export UCP_ORG=docker ; export UCP_TAG=2.1.0 ; export DTR_ORG=docker ; export DTR_TAG=2.2.1; ',  'docker run --label com.docker.editions.system --log-driver=json-file --restart=no -it -e LB_NAME -e SUB_ID -e ROLE -e REGION -e TENANT_ID -e APP_ID -e APP_SECRET -e ACCOUNT_ID -e GROUP_NAME -e PRIVATE_IP -e DOCKER_FOR_IAAS_VERSION -e SWARM_INFO_STORAGE_ACCOUNT -e SWARM_LOGS_STORAGE_ACCOUNT -e AZURE_HOSTNAME -v /var/run/docker.sock:/var/run/docker.sock -v /usr/bin/docker:/usr/bin/docker -v /var/lib/docker:/var/lib/docker -v /var/log:/var/log docker4x/init-azure:\"$DOCKER_FOR_IAAS_VERSION\"\n', '\n', 'export MANAGER_COUNT=\"', variables('managerCount'), '\"', '\n', 'export WORKER_COUNT=\"', variables('workerCount'), '\"', '\n', 'export DTR_STORAGE_ACCOUNT=\"', variables('dtrStorageAccount'), '\"', '\n', 'export UCP_ADMIN_USER=\"', variables('ddcUser'), '\"', '\n', 'export UCP_ADMIN_PASSWORD=\"', variables('ddcPass'), '\"', '\n', 'export UCP_LICENSE=\"', variables('ddcLicense'), '\"', '\n', 'export APP_ELB_HOSTNAME=\"', variables('extlbname'), '\"', '\n', 'export UCP_ELB_HOSTNAME=\"', variables('ucplbname'), '\"', '\n', 'export DTR_ELB_HOSTNAME=\"', variables('dtrlbname'), '\"', '\n', '\n', 'docker run --log-driver=json-file --restart=no -d -e LB_NAME -e SUB_ID -e ROLE -e REGION -e TENANT_ID -e APP_ID -e APP_SECRET -e ACCOUNT_ID -e GROUP_NAME -e PRIVATE_IP -e DOCKER_FOR_IAAS_VERSION -e SWARM_INFO_STORAGE_ACCOUNT -e SWARM_LOGS_STORAGE_ACCOUNT -e AZURE_HOSTNAME -e APP_ELB_HOSTNAME -e UCP_ELB_HOSTNAME -e DTR_ELB_HOSTNAME -e DTR_STORAGE_ACCOUNT -e MANAGER_COUNT -e WORKER_COUNT -e UCP_ADMIN_USER -e UCP_ADMIN_PASSWORD -e UCP_LICENSE -e UCP_TAG -e DTR_TAG -e UCP_ORG -e DTR_ORG  -v /var/run/docker.sock:/var/run/docker.sock -v /usr/bin/docker:/usr/bin/docker -v /var/lib/docker:/var/lib/docker -v /var/log:/var/log -v /tmp/docker:/tmp/docker $UCP_ORG/ucp-init-azure:$UCP_TAG\n')]",
+        "ddcLicense": "[base64(string(parameters('ddcLicenseKey')))]",
+        "ddcPass": "[parameters('ddcPassword')]",
+        "ddcUser": "[parameters('ddcUsername')]",
+        "dtrLbPublicIpDnsName": "[concat('dtrlb-', uniqueString(resourceGroup().name))]",
+        "dtrStorageAccount": "[concat(uniqueString(concat(resourceGroup().id, variables('storageAccountSuffix'))), 'dtr')]",
+        "dtrlbname": "[concat(variables('dtrLbPublicIpDnsName'), '.', variables('storageLocation'), '.cloudapp.azure.com')]",
+        "extlbname": "[concat(variables('lbPublicIpDnsName'), '.', variables('storageLocation'), '.cloudapp.azure.com')]",
+        "groupName": "[resourceGroup().name]",
+        "imageOffer": "docker-ee",
+        "imagePublisher": "docker",
+        "imageReference": {
+            "offer": "[variables('imageOffer')]",
+            "publisher": "[variables('imagePublisher')]",
+            "sku": "[variables('imageSku')]",
+            "version": "[variables('imageVersion')]"
+        },
+        "imageSku": "docker-ee",
+        "imageVersion": "1.0.0",
+        "lbBackendAddressPoolID": "[concat(variables('lbID'),'/backendAddressPools/default')]",
+        "lbDTRFrontEndIPConfigID": "[concat(variables('lbSSHID'),'/frontendIPConfigurations/dtrlbfrontend')]",
+        "lbDTRName": "dtrLoadBalancer",
+        "lbDTRPublicIPAddressName": "[concat(variables('basePrefix'), '-', variables('lbDTRName'),  '-public-ip')]",
+        "lbID": "[resourceId('Microsoft.Network/loadBalancers',variables('lbName'))]",
+        "lbName": "externalLoadBalancer",
+        "lbPublicIPAddressName": "[concat(variables('basePrefix'), '-', variables('lbName'), '-public-ip')]",
+        "lbPublicIpDnsName": "[concat('applb-', uniqueString(resourceGroup().name))]",
+        "lbSSHBackendAddressPoolID": "[concat(variables('lbSSHID'),'/backendAddressPools/default')]",
+        "lbSSHFrontEndIPConfigID": "[concat(variables('lbSSHID'),'/frontendIPConfigurations/default')]",
+        "lbSSHID": "[resourceId('Microsoft.Network/loadBalancers',variables('lbSSHName'))]",
+        "lbSSHNATPoolID": "[concat(variables('lbSSHID'),'/inboundNatPools/default')]",
+        "lbSSHName": "externalSSHLoadBalancer",
+        "lbSSHPublicIPAddressName": "[concat(variables('basePrefix'), '-', variables('lbSSHName'), '-public-ip')]",
+        "lbpublicIPAddress1": "[resourceId('Microsoft.Network/publicIPAddresses',variables('lbSSHPublicIPAddressName'))]",
+        "lbpublicIPAddress2": "[resourceId('Microsoft.Network/publicIPAddresses',variables('lbDTRPublicIPAddressName'))]",
+        "managerAddressPrefix": "172.16.0.0/24",
+        "managerCount": "[parameters('managerCount')]",
+        "managerEndpointDNSNamePrefix": "manager",
+        "managerFirstAddr": 5,
+        "managerVMNamePrefix": "swarm-manager",
+        "managerVMSize": "[parameters('managerVMSize')]",
+        "natSSHEndPort": 50100,
+        "natSSHStartPort": 50000,
+        "sshKeyPath": "[concat('/home/', variables('adminUsername'), '/.ssh/authorized_keys')]",
+        "sshRSAPublicKey": "[parameters('sshPublicKey')]",
+        "storageAccountSuffix": "docker",
+        "storageLocation": "[resourceGroup().location]",
+        "subnetName": "[concat(variables('basePrefix'), '-subnet')]",
+        "subnetPrefix": "10.0.0.0/8",
+        "subnetRef": "[concat(variables('vnetID'),'/subnets/', variables('subnetName'))]",
+        "swarmInfoStorageAccount": "[concat(variables('uniqueStringArray')[0], variables('storageAccountSuffix'))]",
+        "swarmInfoTable": "swarminfo",
+        "swarmLogsStorageAccount": "[concat(uniqueString(concat(resourceGroup().id, variables('storageAccountSuffix'))), 'logs')]",
+        "ucpLbPublicIpDnsName": "[concat('ucplb-', uniqueString(resourceGroup().name))]",
+        "ucplbname": "[concat(variables('ucpLbPublicIpDnsName'), '.', variables('storageLocation'), '.cloudapp.azure.com')]",
+        "uniqueStringArray": [
+            "[concat(uniqueString(concat(resourceGroup().id, variables('storageAccountSuffix'), '0')))]",
+            "[concat(uniqueString(concat(resourceGroup().id, variables('storageAccountSuffix'), '1')))]",
+            "[concat(uniqueString(concat(resourceGroup().id, variables('storageAccountSuffix'), '2')))]",
+            "[concat(uniqueString(concat(resourceGroup().id, variables('storageAccountSuffix'), '3')))]",
+            "[concat(uniqueString(concat(resourceGroup().id, variables('storageAccountSuffix'), '4')))]"
+        ],
+        "vhdContainerName": "dockervhd",
+        "virtualNetworkName": "[concat(variables('basePrefix'), '-vnet')]",
+        "vmssManagersName": "swarm-manager-vmss",
+        "vmssName": "swarm-worker-vmss",
+        "vnetID": "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
+        "workerCount": "[parameters('workerCount')]",
+        "workerVMNamePrefix": "swarm-worker",
+        "workerVMSize": "[parameters('workerVMSize')]"
+    }
+}
